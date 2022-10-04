@@ -177,7 +177,7 @@ But you can write your own solutions for these problems using WireGuard under th
  - [TINC](https://www.tinc-vpn.org/): haven't tried it yet, but it doesn't work on iOS, worst case scenario I could live
  - [VPNCloud](https://github.com/dswd/vpncloud): similar properties to WireGuard, with more auto-mesh features
  - [cjdns](https://github.com/cjdelisle/cjdns): haven't tried it yet, should I?
- - [ZeroTier](https://www.zerotier.com): haven't tried it yet, should I
+ - [ZeroTier](https://www.zerotier.com): haven't tried it yet, should I?
  - [MeshBird](https://github.com/meshbird/meshbird): "Cloud native" VPN/networking layer
  - [Yggdrasil Network](https://yggdrasil-network.github.io/): Yggdrasil is a self-arranging IPv4/IPv6 mesh VPN (haven't tried it yet)
 
@@ -223,6 +223,8 @@ A host that connects to the VPN and registers a VPN subnet address such as `192.
 ### Bounce Server
 
 A publicly reachable peer/node that serves as a fallback to relay traffic for other VPN peers behind NATs.  A bounce server is not a special type of server, it's a normal peer just like all the others, the only difference is that it has a public IP and has kernel-level IP forwarding turned on which allows it to bounce traffic back down the VPN to other clients.
+
+See more: https://tailscale.com/blog/how-nat-traversal-works/ (Tailscale uses Wireguard under the hood)
 
 ### Subnet
 
@@ -367,6 +369,7 @@ Some services that help with key distribution and deployment:
 - https://github.com/its0x08/wg-install
 - https://github.com/brittson/wireguard_config_maker
 - https://www.wireguardconfig.com
+- https://github.com/UrielCh/wireguard
 
 You can also read in keys from a file or via command if you don't want to hardcode them in `wg0.conf`, this makes managing keys via 3rd party service much easier:
 
@@ -517,6 +520,26 @@ ip route show table local
 ip route get 192.0.2.3
 ```
 
+#### Logs
+
+To enable additional logging run:
+```bash
+modprobe wireguard
+echo module wireguard +p > /sys/kernel/debug/dynamic_debug/control
+```
+
+To follow logs:
+```bash
+dmesg -wH
+```
+
+Systems with modern kernel and Safe Boot might require disabling Secure Boot DKMS Signature Verification to allow access to kernel logs.
+```bash
+mokutil --disable-verification
+reboot
+```
+
+
 ### Testing
 
 #### Ping Speed
@@ -603,10 +626,10 @@ Config files can opt to use the limited set of `wg` config options, or the more 
 ¶ <a href="#PostDown">`PostDown = /bin/example arg1 arg2 %i`</a>  
 
 
-¶ <a href="#Peer-">`[Peer]`</a>  
-¶ <a href="#-Name1">`# Name = node2-node.example.tld`</a>  
+¶ <a href="#Peer">`[Peer]`</a>  
+¶ <a href="#-Name-1">`# Name = node2-node.example.tld`</a>  
 ¶ <a href="#AllowedIPs">`AllowedIPs = 192.0.2.1/24`</a>  
-¶ <a href="#ListenPort">`Endpoint = node1.example.tld:51820`</a>  
+¶ <a href="#Endpoint">`Endpoint = node1.example.tld:51820`</a>  
 ¶ <a href="#PublicKey">`PublicKey = remotePublicKeyAbcAbcAbc=`</a>  
 ¶ <a href="#PersistentKeepalive">`PersistentKeepalive = 25`</a>  
 
@@ -952,6 +975,8 @@ WireGuard can sometimes natively make connections between two clients behind NAT
 
 A known port and address need to be configured ahead of time because WireGuard doesn't have a signalling layer or public STUN servers that can be used to search for other hosts dynamically.  WebRTC is an example of a protocol that can dynamically configure a connection between two NATs, but it does this by using an out-of-band signaling server to detect the IP:port combo of each host. WireGuard doesn't have this, so it only works with a hardcoded `Endpoint` + `ListenPort` (and `PersistentKeepalive` so it doesn't drop after inactivity).
 
+Learn more from Tailscale's bible of NAT traversal: https://tailscale.com/blog/how-nat-traversal-works/
+
 #### Requirements for NAT-to-NAT setups
 
  - At least one peer has to have to have a hardcoded, directly-accessible `Endpoint` defined. If they're both behind NATs without stable IP addresses, then you'll need to use Dynamic DNS or another solution to have a stable, publicly accessibly domain/IP for at least one peer
@@ -984,6 +1009,7 @@ NAT-to-NAT connections from behind NATs with strict source-port randomization is
 
 - https://github.com/takutakahashi/wg-connect
 - https://git.zx2c4.com/wireguard-tools/tree/contrib/nat-hole-punching/
+- https://github.com/jwhited/wgsd
 
 ##### Dynamic IP addresses
 Many users report having to restart WireGuard whenever a dynamic IP changes, as it only resolves hostnames on startup. To force WireGuard to re-resolve dynamic DNS `Endpoint` hostnames more often, you may want to use a `PostUp` hook to restart WireGuard every few minutes or hours.
@@ -1005,6 +1031,7 @@ NAT-to-NAT connections are often more unstable and have other limitations, which
  - https://github.com/WireGuard/WireGuard/tree/master/contrib/examples/nat-hole-punching
  - https://staaldraad.github.io/2017/04/17/nat-to-nat-with-wireguard/
  - https://golb.hplar.ch/2019/01/expose-server-vpn.html
+ - https://www.jordanwhited.com/posts/wireguard-endpoint-discovery-nat-traversal/
 
 **Example**
 
@@ -1074,6 +1101,7 @@ All of the userspace implementations are slower than the native C version that r
 
 These are some GUI and CLI tools that wrap WireGuard to assist with config, deployment, key management, and connection.
 
+ - https://github.com/weejewel/wg-easy
  - https://github.com/seashell/drago
  - https://github.com/vx3r/wg-gen-web
  - https://github.com/subspacecloud/subspace
@@ -1096,6 +1124,9 @@ These are some GUI and CLI tools that wrap WireGuard to assist with config, depl
  - https://github.com/naggie/dsnet
  - https://github.com/perara/wg-manager
  - https://github.com/pivpn/pivpn
+ - https://github.com/BrunIF/wg-ccg
+ - https://github.com/freifunkMUC/wg-access-server
+ - https://github.com/firezone/firezone
 
 
 ### Config Shortcuts
@@ -1225,8 +1256,9 @@ For more details see the Further Reading: Docker section below.
 - https://www.wireguard.com/install/#installation
 - https://git.zx2c4.com/WireGuard/about/src/tools/man/wg.8
 - https://git.zx2c4.com/WireGuard/about/src/tools/man/wg-quick.8
-- https://wiki.archlinux.org/index.php/WireGuard
+- https://wiki.archlinux.org/index.php/WireGuard / https://wiki.archlinux.org/title/WireGuard
 - https://wiki.debian.org/Wireguard#Configuration
+- https://docs.netgate.com/pfsense/en/latest/vpn/wireguard/index.html
 
 ### Tutorials
 
@@ -1270,6 +1302,7 @@ For more details see the Further Reading: Docker section below.
 
 ### Related Projects
 
+- https://github.com/weejewel/wg-easy
 - https://github.com/complexorganizations/wireguard-manager
 - https://github.com/subspacecloud/subspace
 - https://github.com/trailofbits/algo
@@ -1288,7 +1321,7 @@ For more details see the Further Reading: Docker section below.
 - https://github.com/WireGuard/wireguard-go
 - https://www.veeam.com/blog/veeam-pn-v2-wireguard.html
 - https://github.com/wg-dashboard/wg-dashboard
-- https://wirt.network
+- https://wirtbot.com
 - https://github.com/seashell/drago
 - https://www.wireguardconfig.com
 - https://github.com/angristan/wireguard-install
@@ -1297,6 +1330,9 @@ For more details see the Further Reading: Docker section below.
 - https://github.com/apognu/wgctl
 - https://github.com/tailscale/tailscale
 - https://github.com/pivpn/pivpn
+- https://github.com/jwhited/wgsd
+- https://github.com/freifunkMUC/wg-access-server
+- https://github.com/firezone/firezone
 
 ### Docker
 
